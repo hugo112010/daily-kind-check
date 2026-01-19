@@ -9,6 +9,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const REMINDER_HOURS_BEFORE = 2;
+
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -19,7 +21,7 @@ const handler = async (req: Request): Promise<Response> => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    console.log("Checking for overdue users...");
+    console.log("Checking for overdue users and sending reminders...");
 
     // Get all users who have completed onboarding
     const { data: profiles, error: profilesError } = await supabase
@@ -31,6 +33,7 @@ const handler = async (req: Request): Promise<Response> => {
 
     const now = new Date();
     let alertsSent = 0;
+    let remindersSent = 0;
 
     for (const profile of profiles || []) {
       if (!profile.last_checkin_at) continue;
@@ -38,7 +41,9 @@ const handler = async (req: Request): Promise<Response> => {
       const lastCheckin = new Date(profile.last_checkin_at);
       const deadlineMs = profile.checkin_interval_hours * 60 * 60 * 1000;
       const deadline = new Date(lastCheckin.getTime() + deadlineMs);
+      const reminderTime = new Date(deadline.getTime() - REMINDER_HOURS_BEFORE * 60 * 60 * 1000);
 
+      // Check if user is overdue
       if (now > deadline) {
         const hoursOverdue = Math.floor((now.getTime() - deadline.getTime()) / (1000 * 60 * 60));
         
@@ -51,7 +56,7 @@ const handler = async (req: Request): Promise<Response> => {
           .gte("alert_sent_at", fourHoursAgo.toISOString());
 
         if (recentAlerts && recentAlerts.length > 0) {
-          console.log(`Skipping ${profile.name} - alert already sent recently`);
+          console.log(`Skipping alert for ${profile.name} - alert already sent recently`);
           continue;
         }
 
@@ -95,7 +100,7 @@ const handler = async (req: Request): Promise<Response> => {
 
             alertsSent++;
           } catch (emailError: any) {
-            console.error(`Failed to send email to ${contact.email}:`, emailError);
+            console.error(`Failed to send alert email to ${contact.email}:`, emailError);
             await supabase.from("alerts_log").insert({
               user_id: profile.user_id,
               contact_id: contact.id,
@@ -105,12 +110,76 @@ const handler = async (req: Request): Promise<Response> => {
           }
         }
       }
+      // Check if user should receive a reminder (2h before deadline)
+      else if (now >= reminderTime && now < deadline) {
+        // Only send reminder if interval is > 2 hours (otherwise no time for reminder)
+        if (profile.checkin_interval_hours <= REMINDER_HOURS_BEFORE) {
+          continue;
+        }
+
+        // Check if we already sent a reminder for this deadline
+        const { data: existingReminders } = await supabase
+          .from("reminders_log")
+          .select("*")
+          .eq("user_id", profile.user_id)
+          .eq("deadline_at", deadline.toISOString());
+
+        if (existingReminders && existingReminders.length > 0) {
+          console.log(`Skipping reminder for ${profile.name} - already sent for this deadline`);
+          continue;
+        }
+
+        // Send reminder email to the user
+        if (profile.email) {
+          console.log(`Sending reminder to ${profile.name} at ${profile.email}`);
+
+          try {
+            await resend.emails.send({
+              from: "Je Vais Bien <onboarding@resend.dev>",
+              to: [profile.email],
+              subject: `🔔 Rappel: N'oubliez pas votre check-in`,
+              html: `
+                <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                  <h1 style="color: #f59e0b; font-size: 24px;">🔔 Rappel de check-in</h1>
+                  <p style="font-size: 18px; color: #333;">Bonjour ${profile.name || 'Utilisateur'},</p>
+                  <p style="font-size: 18px; color: #333;">
+                    Votre check-in expire dans <strong>moins de 2 heures</strong>.
+                  </p>
+                  <p style="font-size: 18px; color: #333;">
+                    N'oubliez pas de confirmer que vous allez bien pour éviter d'alerter vos contacts d'urgence.
+                  </p>
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="https://id-preview--7d9503a8-c3eb-4d1c-90f4-fe93e65e1850.lovable.app/dashboard" 
+                       style="background-color: #10b981; color: white; padding: 15px 30px; text-decoration: none; border-radius: 8px; font-size: 18px; font-weight: bold;">
+                      Faire mon check-in maintenant
+                    </a>
+                  </div>
+                  <hr style="border: 1px solid #eee; margin: 30px 0;" />
+                  <p style="font-size: 14px; color: #666;">
+                    Cet email a été envoyé automatiquement par l'application "Je Vais Bien".
+                  </p>
+                </div>
+              `,
+            });
+
+            await supabase.from("reminders_log").insert({
+              user_id: profile.user_id,
+              deadline_at: deadline.toISOString(),
+            });
+
+            remindersSent++;
+            console.log(`Reminder sent to ${profile.name}`);
+          } catch (emailError: any) {
+            console.error(`Failed to send reminder to ${profile.email}:`, emailError);
+          }
+        }
+      }
     }
 
-    console.log(`Check complete. Alerts sent: ${alertsSent}`);
+    console.log(`Check complete. Alerts sent: ${alertsSent}, Reminders sent: ${remindersSent}`);
 
     return new Response(
-      JSON.stringify({ success: true, alertsSent }),
+      JSON.stringify({ success: true, alertsSent, remindersSent }),
       { status: 200, headers: { "Content-Type": "application/json", ...corsHeaders } }
     );
   } catch (error: any) {

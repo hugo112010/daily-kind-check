@@ -136,6 +136,27 @@ export type Database = {
         }
         Relationships: []
       }
+      reminders_log: {
+        Row: {
+          deadline_at: string
+          id: string
+          reminder_sent_at: string
+          user_id: string
+        }
+        Insert: {
+          deadline_at: string
+          id?: string
+          reminder_sent_at?: string
+          user_id: string
+        }
+        Update: {
+          deadline_at?: string
+          id?: string
+          reminder_sent_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
