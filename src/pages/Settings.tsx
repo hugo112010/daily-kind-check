@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useEmergencyContacts, EmergencyContact } from '@/hooks/useEmergencyContacts';
 import { useToast } from '@/hooks/use-toast';
-import { Globe, Trash2, Plus, Star, Edit2, X, Check } from 'lucide-react';
+import { Globe, Trash2, Plus, Star, Edit2, X, Check, Mail, Smartphone, AlertCircle } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
 import BottomNav from '@/components/layout/BottomNav';
 
@@ -18,6 +17,10 @@ const Settings: React.FC = () => {
   const { toast } = useToast();
 
   const [intervalHours, setIntervalHours] = useState(profile?.checkin_interval_hours || 24);
+  const [notificationMethod, setNotificationMethod] = useState<'email' | 'sms'>(
+    (profile?.notification_method as 'email' | 'sms') || 'email'
+  );
+  const [phone, setPhone] = useState(profile?.phone || '');
   const [saving, setSaving] = useState(false);
 
   // New contact form
@@ -33,6 +36,8 @@ const Settings: React.FC = () => {
   React.useEffect(() => {
     if (profile) {
       setIntervalHours(profile.checkin_interval_hours);
+      setNotificationMethod((profile.notification_method as 'email' | 'sms') || 'email');
+      setPhone(profile.phone || '');
     }
   }, [profile]);
 
@@ -40,6 +45,29 @@ const Settings: React.FC = () => {
     setSaving(true);
     try {
       const { error } = await updateProfile({ checkin_interval_hours: intervalHours });
+      if (error) throw error;
+      toast({ title: t('settings.saved') });
+    } catch (error) {
+      toast({
+        title: t('common.error'),
+        description: String(error),
+        variant: 'destructive',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleSaveNotificationMethod = async () => {
+    setSaving(true);
+    try {
+      const updates: { notification_method: string; phone?: string } = { 
+        notification_method: notificationMethod 
+      };
+      if (notificationMethod === 'sms') {
+        updates.phone = phone.trim();
+      }
+      const { error } = await updateProfile(updates);
       if (error) throw error;
       toast({ title: t('settings.saved') });
     } catch (error) {
@@ -151,6 +179,69 @@ const Settings: React.FC = () => {
               English
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Notification Method */}
+      <Card className="mb-6 border-2">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-xl">
+            {notificationMethod === 'email' ? <Mail className="h-6 w-6" /> : <Smartphone className="h-6 w-6" />}
+            {t('settings.notification_method')}
+          </CardTitle>
+          <p className="text-muted-foreground">{t('settings.notification_help')}</p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-4">
+            <Button
+              variant={notificationMethod === 'email' ? 'default' : 'outline'}
+              size="lg"
+              onClick={() => setNotificationMethod('email')}
+              className="flex-1 h-14 text-lg"
+            >
+              <Mail className="h-5 w-5 mr-2" />
+              {t('settings.notification_email')}
+            </Button>
+            <Button
+              variant={notificationMethod === 'sms' ? 'default' : 'outline'}
+              size="lg"
+              onClick={() => setNotificationMethod('sms')}
+              className="flex-1 h-14 text-lg"
+            >
+              <Smartphone className="h-5 w-5 mr-2" />
+              {t('settings.notification_sms')}
+            </Button>
+          </div>
+
+          {notificationMethod === 'sms' && (
+            <>
+              <div className="flex items-center gap-2 p-3 bg-warning/10 border border-warning/20 rounded-lg">
+                <AlertCircle className="h-5 w-5 text-warning" />
+                <p className="text-sm text-warning">{t('settings.sms_coming_soon')}</p>
+              </div>
+              <div className="space-y-2">
+                <Input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder={t('settings.phone_placeholder')}
+                  className="h-14 text-lg focus-accessible"
+                />
+              </div>
+            </>
+          )}
+
+          <Button
+            onClick={handleSaveNotificationMethod}
+            disabled={saving || (
+              notificationMethod === profile?.notification_method && 
+              (notificationMethod === 'email' || phone === profile?.phone)
+            )}
+            size="lg"
+            className="w-full h-14 text-lg"
+          >
+            {saving ? t('common.loading') : t('common.save')}
+          </Button>
         </CardContent>
       </Card>
 

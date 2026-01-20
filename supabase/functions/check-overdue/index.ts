@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { Resend } from "https://esm.sh/resend@4.0.0";
 
 const resend = new Resend(Deno.env.get("RESEND_API_KEY"));
@@ -10,6 +10,16 @@ const corsHeaders = {
 };
 
 const REMINDER_HOURS_BEFORE = 2;
+
+// Input sanitization for HTML
+const sanitizeHtml = (str: string): string => {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+};
 
 const handler = async (req: Request): Promise<Response> => {
   if (req.method === "OPTIONS") {
@@ -43,6 +53,9 @@ const handler = async (req: Request): Promise<Response> => {
       const deadline = new Date(lastCheckin.getTime() + deadlineMs);
       const reminderTime = new Date(deadline.getTime() - REMINDER_HOURS_BEFORE * 60 * 60 * 1000);
 
+      // Sanitize user name for email HTML
+      const safeName = sanitizeHtml(profile.name || 'Utilisateur');
+
       // Check if user is overdue
       if (now > deadline) {
         const hoursOverdue = Math.floor((now.getTime() - deadline.getTime()) / (1000 * 60 * 60));
@@ -67,19 +80,26 @@ const handler = async (req: Request): Promise<Response> => {
           .eq("user_id", profile.user_id);
 
         for (const contact of contacts || []) {
+          const safeContactName = sanitizeHtml(contact.name);
           console.log(`Sending alert for ${profile.name} to ${contact.email}`);
 
           try {
+            // Handle notification based on user preference
+            if (profile.notification_method === 'sms' && profile.phone) {
+              console.log(`SMS notification requested for ${profile.phone} - falling back to email (SMS not implemented)`);
+              // TODO: Implement SMS via Twilio when API keys are provided
+            }
+
             await resend.emails.send({
               from: "Je Vais Bien <onboarding@resend.dev>",
               to: [contact.email],
-              subject: `⚠️ Alerte: ${profile.name || 'Utilisateur'} n'a pas fait son check-in`,
+              subject: `⚠️ Alerte: ${safeName} n'a pas fait son check-in`,
               html: `
                 <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                   <h1 style="color: #dc2626; font-size: 24px;">⚠️ Alerte de sécurité</h1>
-                  <p style="font-size: 18px; color: #333;">Bonjour ${contact.name},</p>
+                  <p style="font-size: 18px; color: #333;">Bonjour ${safeContactName},</p>
                   <p style="font-size: 18px; color: #333;">
-                    <strong>${profile.name || 'Votre proche'}</strong> n'a pas confirmé qu'il/elle allait bien depuis plus de <strong>${profile.checkin_interval_hours + hoursOverdue} heures</strong>.
+                    <strong>${safeName}</strong> n'a pas confirmé qu'il/elle allait bien depuis plus de <strong>${profile.checkin_interval_hours + hoursOverdue} heures</strong>.
                   </p>
                   <p style="font-size: 18px; color: #333;">
                     Merci de le/la contacter pour vérifier que tout va bien.
@@ -141,7 +161,7 @@ const handler = async (req: Request): Promise<Response> => {
               html: `
                 <div style="font-family: system-ui, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                   <h1 style="color: #f59e0b; font-size: 24px;">🔔 Rappel de check-in</h1>
-                  <p style="font-size: 18px; color: #333;">Bonjour ${profile.name || 'Utilisateur'},</p>
+                  <p style="font-size: 18px; color: #333;">Bonjour ${safeName},</p>
                   <p style="font-size: 18px; color: #333;">
                     Votre check-in expire dans <strong>moins de 2 heures</strong>.
                   </p>

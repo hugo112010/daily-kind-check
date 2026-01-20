@@ -11,6 +11,8 @@ export interface Profile {
   last_checkin_at: string | null;
   preferred_language: string;
   has_completed_onboarding: boolean;
+  notification_method: string;
+  phone: string | null;
   created_at: string;
   updated_at: string;
 }
