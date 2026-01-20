@@ -82,6 +82,13 @@ const translations: Translations = {
   'settings.cannot_delete_last': { fr: 'Vous devez avoir au moins un contact d\'urgence', en: 'You must have at least one emergency contact' },
   'settings.language': { fr: 'Langue', en: 'Language' },
   'settings.saved': { fr: 'Paramètres enregistrés', en: 'Settings saved' },
+  'settings.notification_method': { fr: 'Méthode de notification', en: 'Notification method' },
+  'settings.notification_help': { fr: 'Comment vos contacts d\'urgence seront alertés.', en: 'How your emergency contacts will be alerted.' },
+  'settings.notification_email': { fr: 'Email', en: 'Email' },
+  'settings.notification_sms': { fr: 'SMS', en: 'SMS' },
+  'settings.phone': { fr: 'Numéro de téléphone', en: 'Phone number' },
+  'settings.phone_placeholder': { fr: 'ex: +33612345678', en: 'e.g. +33612345678' },
+  'settings.sms_coming_soon': { fr: 'SMS bientôt disponible, email utilisé pour l\'instant', en: 'SMS coming soon, email used for now' },
   
   // Navigation
   'nav.dashboard': { fr: 'Accueil', en: 'Home' },
