@@ -7,6 +7,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useCheckins } from '@/hooks/useCheckins';
 import { useToast } from '@/hooks/use-toast';
+import { getSafeErrorMessage } from '@/lib/errorHandler';
 import { CheckCircle, Clock, AlertTriangle, LogOut } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
 import BottomNav from '@/components/layout/BottomNav';
@@ -83,7 +84,7 @@ const Dashboard: React.FC = () => {
     } catch (error) {
       toast({
         title: t('common.error'),
-        description: String(error),
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
