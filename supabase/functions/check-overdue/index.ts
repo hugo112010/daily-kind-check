@@ -120,12 +120,17 @@ const handler = async (req: Request): Promise<Response> => {
 
             alertsSent++;
           } catch (emailError: any) {
+            // Log detailed error server-side only (not exposed to users)
             console.error(`Failed to send alert email to ${contact.email}:`, emailError);
+            
+            // Store sanitized error message - never expose internal system details
+            const sanitizedErrorMessage = "L'envoi de l'email a échoué. Veuillez vérifier l'adresse email du contact.";
+            
             await supabase.from("alerts_log").insert({
               user_id: profile.user_id,
               contact_id: contact.id,
               status: "failed",
-              error_message: emailError.message,
+              error_message: sanitizedErrorMessage,
             });
           }
         }
