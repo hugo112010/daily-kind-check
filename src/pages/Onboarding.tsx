@@ -9,6 +9,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useEmergencyContacts } from '@/hooks/useEmergencyContacts';
 import { useToast } from '@/hooks/use-toast';
+import { getSafeErrorMessage } from '@/lib/errorHandler';
 import { CheckCircle, Bell, Lock, Globe } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
 
@@ -98,7 +99,7 @@ const Onboarding: React.FC = () => {
     } catch (error) {
       toast({
         title: t('common.error'),
-        description: String(error),
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     } finally {

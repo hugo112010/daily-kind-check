@@ -6,6 +6,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { useProfile } from '@/hooks/useProfile';
 import { useEmergencyContacts, EmergencyContact } from '@/hooks/useEmergencyContacts';
 import { useToast } from '@/hooks/use-toast';
+import { getSafeErrorMessage } from '@/lib/errorHandler';
 import { Globe, Trash2, Plus, Star, Edit2, X, Check, Mail, Smartphone, AlertCircle } from 'lucide-react';
 import PageContainer from '@/components/layout/PageContainer';
 import BottomNav from '@/components/layout/BottomNav';
@@ -50,7 +51,7 @@ const Settings: React.FC = () => {
     } catch (error) {
       toast({
         title: t('common.error'),
-        description: String(error),
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -73,7 +74,7 @@ const Settings: React.FC = () => {
     } catch (error) {
       toast({
         title: t('common.error'),
-        description: String(error),
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     } finally {
@@ -95,7 +96,7 @@ const Settings: React.FC = () => {
     } catch (error) {
       toast({
         title: t('common.error'),
-        description: String(error),
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -117,7 +118,7 @@ const Settings: React.FC = () => {
     } catch (error) {
       toast({
         title: t('common.error'),
-        description: String(error),
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     }
@@ -140,7 +141,7 @@ const Settings: React.FC = () => {
     } catch (error) {
       toast({
         title: t('common.error'),
-        description: String(error),
+        description: getSafeErrorMessage(error),
         variant: 'destructive',
       });
     }
